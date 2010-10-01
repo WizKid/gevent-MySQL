@@ -35,8 +35,17 @@ class ProgrammingError(DatabaseError): pass
 class IntegrityError(DatabaseError): pass
 class DataError(DatabaseError): pass
 class NotSupportedError(DatabaseError): pass
-
 class TimeoutError(DatabaseError): pass
+
+
+class RawArgument(object):
+
+    def __init__(self, v):
+        self._value = v
+
+    def __str__(self):
+        return self._value
+
 
 class Cursor(object):
     log = logging.getLogger('Cursor')
@@ -83,17 +92,17 @@ class Cursor(object):
     def _escape_param(self, arg):
         if type(arg) == str:
             return "'%s'" % self._escape_string(arg)
-        elif type(arg) == unicode:
+        if type(arg) == unicode:
             return "'%s'" % self._escape_string(arg).encode(self.connection.charset)
-        elif isinstance(arg, (int, long, float)):
+        if isinstance(arg, (int, long, float, RawArgument)):
             return str(arg)
-        elif arg is None:
+        if arg is None:
             return 'null'
-        elif isinstance(arg, datetime):
+        if isinstance(arg, datetime):
             return "'%s'" % arg.strftime('%Y-%m-%d %H:%M:%S')
-        elif isinstance(arg, date):
+        if isinstance(arg, date):
             return "'%s'" % arg.strftime('%Y-%m-%d')
-        elif isinstance(arg, (list, set)):
+        if isinstance(arg, (list, set)):
             return ",".join([self._escape_param(a) for a in arg])
 
         assert False, "unknown argument type: %s %s" % (type(arg), repr(arg))
