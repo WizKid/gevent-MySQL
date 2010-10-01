@@ -79,7 +79,25 @@ class Cursor(object):
             return TimeoutError(msg + ': ' + str(e))
         else:
             return Error(msg + ': ' + str(e))
-        
+
+    def _escape_param(self, arg):
+        if type(arg) == str:
+            return "'%s'" % self._escape_string(arg)
+        elif type(arg) == unicode:
+            return "'%s'" % self._escape_string(arg).encode(self.connection.charset)
+        elif isinstance(arg, (int, long, float)):
+            return str(arg)
+        elif arg is None:
+            return 'null'
+        elif isinstance(arg, datetime):
+            return "'%s'" % arg.strftime('%Y-%m-%d %H:%M:%S')
+        elif isinstance(arg, date):
+            return "'%s'" % arg.strftime('%Y-%m-%d')
+        elif isinstance(arg, (list, set)):
+            return ",".join([self._escape_param(a) for a in arg])
+
+        assert False, "unknown argument type: %s %s" % (type(arg), repr(arg))
+
     def execute(self, qry, args = []):
         #print repr(qry),  repr(args), self.connection.charset
         if self.closed:
@@ -92,22 +110,7 @@ class Cursor(object):
         try:
             self._close_result() #close any previous result if needed
             #substitute arguments
-            params = []
-            for arg in args:
-                if type(arg) == str:
-                    params.append("'%s'" % self._escape_string(arg))
-                elif type(arg) == unicode:
-                    params.append("'%s'" % self._escape_string(arg).encode(self.connection.charset))
-                elif isinstance(arg, (int, long, float)):
-                    params.append(str(arg))
-                elif arg is None:
-                    params.append('null')
-                elif isinstance(arg, datetime):
-                    params.append("'%s'" % arg.strftime('%Y-%m-%d %H:%M:%S'))
-                elif isinstance(arg, date):
-                    params.append("'%s'" % arg.strftime('%Y-%m-%d'))
-                else:
-                    assert False, "unknown argument type: %s %s" % (type(arg), repr(arg))
+            params = [self._escape_param(arg) for arg in args]
 
             qry = qry % tuple(params)
             result = self.connection.client.query(qry)
