@@ -119,9 +119,12 @@ class Cursor(object):
         try:
             self._close_result() #close any previous result if needed
             #substitute arguments
-            params = [self._escape_param(arg) for arg in args]
+            if (isinstance(args, dict)):
+                params = dict([(k, self._escape_param(v)) for k, v in args.iteritems()])
+            else:
+                params = tuple([self._escape_param(arg) for arg in args])
 
-            qry = qry % tuple(params)
+            qry = qry % params
             result = self.connection.client.query(qry)
             
             #process result if nescecary
