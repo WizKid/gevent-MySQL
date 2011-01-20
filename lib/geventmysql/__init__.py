@@ -40,11 +40,15 @@ class TimeoutError(DatabaseError): pass
 
 class RawArgument(object):
 
-    def __init__(self, v):
-        self._value = v
+    def __init__(self, str, args = []):
+        self.str = str
+        self.args = args
+
+    def __repr__(self):
+        return str(self)
 
     def __str__(self):
-        return self._value
+        return self.str % self.args
 
 
 class Cursor(object):
@@ -94,8 +98,10 @@ class Cursor(object):
             return "'%s'" % self._escape_string(arg)
         if type(arg) == unicode:
             return "'%s'" % self._escape_string(arg).encode(self.connection.charset)
-        if isinstance(arg, (int, long, float, RawArgument)):
+        if isinstance(arg, (int, long, float)):
             return str(arg)
+        if isinstance(arg, RawArgument):
+            return self._generate_query(arg.str, arg.args)
         if arg is None:
             return 'null'
         if isinstance(arg, datetime):
@@ -107,24 +113,29 @@ class Cursor(object):
 
         assert False, "unknown argument type: %s %s" % (type(arg), repr(arg))
 
+    def _generate_query(self, qry, args = []):
+        if type(qry) == unicode:
+            #we will only communicate in 8-bits with mysql
+            qry = qry.encode(self.connection.charset)
+
+        # substitute arguments
+        if (isinstance(args, dict)):
+            params = dict([(k, self._escape_param(v)) for k, v in args.iteritems()])
+        else:
+            params = tuple([self._escape_param(arg) for arg in args])
+
+        return qry % params
+
     def execute(self, qry, args = []):
         #print repr(qry),  repr(args), self.connection.charset
         if self.closed:
             raise ProgrammingError('this cursor is already closed')
 
-        if type(qry) == unicode:
-            #we will only communicate in 8-bits with mysql
-            qry = qry.encode(self.connection.charset)
-
         try:
             self._close_result() #close any previous result if needed
-            #substitute arguments
-            if (isinstance(args, dict)):
-                params = dict([(k, self._escape_param(v)) for k, v in args.iteritems()])
-            else:
-                params = tuple([self._escape_param(arg) for arg in args])
 
-            qry = qry % params
+            qry = self._generate_query(qry, args)
+
             result = self.connection.client.query(qry)
             
             #process result if nescecary
