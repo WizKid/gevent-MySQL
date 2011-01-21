@@ -12,6 +12,7 @@
 import sys
 import logging
 import exceptions
+import itertools
 
 import gevent
 TaskletExit = gevent.GreenletExit
@@ -154,18 +155,29 @@ class Cursor(object):
             raise
         except Exception, e:
             raise self._wrap_exception(e, "an error occurred while executing qry %s" % (qry, ))
-        
-    def fetchall(self):
+
+    def _rowToDict(self, row, fieldNames):
+        return dict(itertools.izip(fieldNames, row))
+
+    def fetchall(self, dictionary=False):
         try:
-            return list(self.result_iter)
+            if not dictionary:
+                return list(self.result_iter)
+
+            fieldNames = [f[0] for f in self.result.fields]
+            return [self._rowToDict(r, fieldNames) for r in self.result_iter]
         except TaskletExit:
             raise
         except Exception, e:
             raise self._wrap_exception(e, "an error occurred while fetching results")
-            
-    def fetchone(self):
+
+    def fetchone(self, dictionary=False):
         try:
-            return self.result_iter.next()
+            row = self.result_iter.next()
+            if not dictionary:
+                return row
+
+            return self._rowToDict([f[0] for f in self.result.fields], row)
         except StopIteration:
             return None
         except TaskletExit:
