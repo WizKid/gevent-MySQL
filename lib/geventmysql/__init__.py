@@ -177,7 +177,7 @@ class Cursor(object):
             if not dictionary:
                 return row
 
-            return self._rowToDict([f[0] for f in self.result.fields], row)
+            return self._rowToDict(row, [f[0] for f in self.result.fields])
         except StopIteration:
             return None
         except TaskletExit:
