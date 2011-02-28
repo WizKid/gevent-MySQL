@@ -314,7 +314,7 @@ class Connection(object):
         if self._incommand != False: assert False, "cannot close while still in a command"
         self._close()
 
-    def command(self, cmd, cmd_text):
+    def command(self, cmd, cmd_text=""):
         """sends a COM_XXX command with the given text and possibly return a resultset (select)"""
         #print 'command', cmd, repr(cmd_text), type(cmd_text)
         assert type(cmd_text) == str #as opposed to unicode
@@ -371,6 +371,9 @@ class Connection(object):
     def init_db(self, cmd_text):
         """Sends a COM_INIT command with the given text"""
         return self.command(COMMAND.INITDB, cmd_text)
+
+    def ping(self):
+        self.command(COMMAND.PING)
 
     def set_autocommit(self, commit):
         """Sets autocommit setting for this connection. True = on, False = off"""
